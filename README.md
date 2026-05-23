@@ -1,6 +1,6 @@
-# JobPilot
+# GlaucusAtlanticus
 
-An ethical AI job-search copilot MVP built with Next.js and Tailwind CSS inside the GlaucusAtlanticus repo.
+Ethical job-search copilot built with Next.js and Tailwind CSS.
 
 ## Current Scope
 
@@ -35,7 +35,7 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 ## Notes
 
-The first version intentionally keeps all text in browser state only. Future versions can add explicit consent, persistence, and API-backed analysis after the safety model is designed.
+The first version intentionally keeps all text in browser state only. Future versions can add explicit consent, persistence, and API-backed analysis after the safety model is designed. The current local analysis flow can be treated as the JobPilot MVP feature, but GlaucusAtlanticus remains the project and product brand.
 
 - [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
 - [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.

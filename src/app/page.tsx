@@ -503,14 +503,14 @@ export default function Home() {
         <header className="grid gap-6 border-b border-slate-200 pb-8 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-end">
           <section>
             <p className="text-sm font-semibold uppercase tracking-normal text-teal-700">
-              JobPilot
+              GlaucusAtlanticus
             </p>
             <h1 className="mt-3 max-w-4xl text-4xl font-semibold leading-tight tracking-normal text-slate-950 sm:text-5xl">
               Find the jobs worth applying for.
             </h1>
             <p className="mt-4 max-w-2xl text-base leading-7 text-slate-600 sm:text-lg">
-              Paste your resume and a job description. JobPilot gives a fit score,
-              red flags, and tailored application guidance.
+              Ethical job-search copilot. Paste your resume and a job description
+              to get a fit score, red flags, and tailored application guidance.
             </p>
           </section>
 
