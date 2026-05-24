@@ -10,13 +10,16 @@ Ethical job-search copilot built with Next.js and Tailwind CSS.
 - Job description input
 - Target role categories: Tech, Tutoring, Art, Casual, Freelance
 - Local skill extraction, fit score, apply/maybe/skip recommendation, matching skills, missing skills, red flags, and a draft cover letter
+- Local saved jobs tracker with status and notes stored in browser localStorage only
 
 ## Safety Boundaries
 
 - No auto-apply workflow
 - No scraping
 - No paid APIs
-- No database or persistent storage
+- No backend database
+- No login or account system
+- Tracker data is stored in browser localStorage only
 - No server-side handling of sensitive resume/job text
 
 ## Getting Started

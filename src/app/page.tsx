@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type RoleCategory = "Tech" | "Tutoring" | "Art" | "Casual" | "Freelance";
 type Recommendation = "Apply" | "Maybe" | "Skip";
 type PillTone = "neutral" | "success" | "warning" | "danger";
+type TrackerStatus = "Interested" | "Applied" | "Interview" | "Rejected";
 
 type Skill = {
   label: string;
@@ -29,6 +30,18 @@ type Analysis = {
   coverLetter: string;
 };
 
+type SavedJob = {
+  id: string;
+  roleTitle: string;
+  companyName: string;
+  category: RoleCategory;
+  fitScore: number;
+  recommendation: Recommendation;
+  status: TrackerStatus;
+  notes: string;
+  dateSaved: string;
+};
+
 const roleCategories: RoleCategory[] = [
   "Tech",
   "Tutoring",
@@ -36,6 +49,15 @@ const roleCategories: RoleCategory[] = [
   "Casual",
   "Freelance",
 ];
+
+const trackerStatuses: TrackerStatus[] = [
+  "Interested",
+  "Applied",
+  "Interview",
+  "Rejected",
+];
+
+const trackerStorageKey = "glaucus-atlanticus-saved-jobs";
 
 const skillCatalog: Skill[] = [
   {
@@ -204,6 +226,9 @@ const sampleProfile =
 
 const sampleJob =
   "We need a freelance frontend developer for a remote product dashboard. Must have React, TypeScript, Next.js, API integration, testing, portfolio examples, clear communication, and project delivery skills. Pay range is listed as $45-$60 per hour.";
+
+const sampleRoleTitle = "Frontend dashboard developer";
+const sampleCompanyName = "Northstar Studio";
 
 const initialCoverLetter =
   "Run an analysis to generate a short draft cover letter tailored to the selected category.";
@@ -464,15 +489,78 @@ function recommendationStyle(recommendation: Recommendation) {
   return "bg-rose-50 text-rose-800 ring-rose-200";
 }
 
+function createSavedJobId() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function parseSavedJobs(value: string | null) {
+  if (!value) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(value);
+
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed.filter((job): job is SavedJob => {
+      return (
+        typeof job.id === "string" &&
+        typeof job.roleTitle === "string" &&
+        typeof job.companyName === "string" &&
+        roleCategories.includes(job.category) &&
+        typeof job.fitScore === "number" &&
+        ["Apply", "Maybe", "Skip"].includes(job.recommendation) &&
+        trackerStatuses.includes(job.status) &&
+        typeof job.notes === "string" &&
+        typeof job.dateSaved === "string"
+      );
+    });
+  } catch {
+    return [];
+  }
+}
+
 export default function Home() {
+  const [roleTitle, setRoleTitle] = useState("");
+  const [companyName, setCompanyName] = useState("");
   const [profileText, setProfileText] = useState("");
   const [jobText, setJobText] = useState("");
   const [roleCategory, setRoleCategory] = useState<RoleCategory>("Tech");
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
+  const [savedJobs, setSavedJobs] = useState<SavedJob[]>([]);
+  const [trackerLoaded, setTrackerLoaded] = useState(false);
 
   const hasInputs = profileText.trim().length > 0 && jobText.trim().length > 0;
   const score = analysis?.fitScore ?? 0;
   const recommendation = analysis?.recommendation ?? "Maybe";
+  const canSave = Boolean(analysis);
+
+  useEffect(() => {
+    const storedJobs = parseSavedJobs(
+      window.localStorage.getItem(trackerStorageKey),
+    );
+    const loadTracker = window.setTimeout(() => {
+      setSavedJobs(storedJobs);
+      setTrackerLoaded(true);
+    }, 0);
+
+    return () => window.clearTimeout(loadTracker);
+  }, []);
+
+  useEffect(() => {
+    if (!trackerLoaded) {
+      return;
+    }
+
+    window.localStorage.setItem(trackerStorageKey, JSON.stringify(savedJobs));
+  }, [savedJobs, trackerLoaded]);
 
   function runAnalysis() {
     if (!hasInputs) {
@@ -484,6 +572,8 @@ export default function Home() {
   }
 
   function trySample() {
+    setRoleTitle(sampleRoleTitle);
+    setCompanyName(sampleCompanyName);
     setProfileText(sampleProfile);
     setJobText(sampleJob);
     setRoleCategory("Tech");
@@ -491,10 +581,48 @@ export default function Home() {
   }
 
   function clearInputs() {
+    setRoleTitle("");
+    setCompanyName("");
     setProfileText("");
     setJobText("");
     setRoleCategory("Tech");
     setAnalysis(null);
+  }
+
+  function saveToTracker() {
+    if (!analysis) {
+      return;
+    }
+
+    const savedJob: SavedJob = {
+      id: createSavedJobId(),
+      roleTitle: roleTitle.trim() || "Untitled role",
+      companyName: companyName.trim() || "Unknown company",
+      category: roleCategory,
+      fitScore: analysis.fitScore,
+      recommendation: analysis.recommendation,
+      status: "Interested",
+      notes:
+        analysis.redFlags.length > 0
+          ? `Review red flags: ${analysis.redFlags.join(", ")}`
+          : "",
+      dateSaved: new Date().toISOString(),
+    };
+
+    setSavedJobs((currentJobs) => [savedJob, ...currentJobs]);
+  }
+
+  function updateSavedJob(
+    id: string,
+    updates: Partial<Pick<SavedJob, "status" | "notes">>,
+  ) {
+    setSavedJobs((currentJobs) =>
+      currentJobs.map((job) => (job.id === id ? { ...job, ...updates } : job)),
+    );
+  }
+
+  function deleteSavedJob(id: string) {
+    setSavedJobs((currentJobs) => currentJobs.filter((job) => job.id !== id));
   }
 
   return (
@@ -531,8 +659,8 @@ export default function Home() {
                 <p className="text-xs text-slate-500">Logins</p>
               </div>
               <div>
-                <p className="text-2xl font-semibold text-slate-950">0</p>
-                <p className="text-xs text-slate-500">Storage</p>
+              <p className="text-2xl font-semibold text-slate-950">0</p>
+                <p className="text-xs text-slate-500">Cloud DBs</p>
               </div>
             </div>
           </section>
@@ -552,6 +680,32 @@ export default function Home() {
             </div>
 
             <div className="mt-6 space-y-5">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="block">
+                  <span className="text-sm font-medium text-slate-800">
+                    Role title
+                  </span>
+                  <input
+                    value={roleTitle}
+                    onChange={(event) => setRoleTitle(event.target.value)}
+                    className="mt-2 h-11 w-full rounded-lg border border-slate-300 bg-slate-50 px-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-teal-600 focus:bg-white focus:ring-4 focus:ring-teal-100"
+                    placeholder="Frontend developer"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="text-sm font-medium text-slate-800">
+                    Company name
+                  </span>
+                  <input
+                    value={companyName}
+                    onChange={(event) => setCompanyName(event.target.value)}
+                    className="mt-2 h-11 w-full rounded-lg border border-slate-300 bg-slate-50 px-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-teal-600 focus:bg-white focus:ring-4 focus:ring-teal-100"
+                    placeholder="Company or client"
+                  />
+                </label>
+              </div>
+
               <label className="block">
                 <span className="text-sm font-medium text-slate-800">
                   Resume/profile text
@@ -620,6 +774,15 @@ export default function Home() {
                   Try sample
                 </button>
               </div>
+
+              <button
+                type="button"
+                onClick={saveToTracker}
+                disabled={!canSave}
+                className="w-full rounded-md border border-teal-700 bg-teal-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-300"
+              >
+                Save to tracker
+              </button>
             </div>
           </section>
 
@@ -698,6 +861,108 @@ export default function Home() {
                 {analysis?.coverLetter ?? initialCoverLetter}
               </pre>
             </ResultCard>
+
+            <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/70">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <div className="mb-4 h-1 w-10 rounded-sm bg-teal-700" />
+                  <h2 className="text-xl font-semibold text-slate-950">
+                    Saved jobs
+                  </h2>
+                </div>
+                <p className="text-sm text-slate-500">
+                  Browser localStorage only
+                </p>
+              </div>
+
+              <div className="mt-5 space-y-3">
+                {savedJobs.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-5 text-sm leading-6 text-slate-600">
+                    Saved jobs will appear here after an analysis is added to the
+                    tracker.
+                  </div>
+                ) : (
+                  savedJobs.map((job) => (
+                    <article
+                      key={job.id}
+                      className="rounded-lg border border-slate-200 bg-slate-50 p-4"
+                    >
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <h3 className="text-lg font-semibold text-slate-950">
+                            {job.roleTitle}
+                          </h3>
+                          <p className="mt-1 text-sm text-slate-600">
+                            {job.companyName} · {job.category} · Saved{" "}
+                            {new Date(job.dateSaved).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => deleteSavedJob(job.id)}
+                          className="w-fit rounded-md border border-rose-200 bg-white px-3 py-2 text-sm font-semibold text-rose-700 transition hover:border-rose-300 hover:bg-rose-50"
+                        >
+                          Delete
+                        </button>
+                      </div>
+
+                      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                        <div className="rounded-md border border-slate-200 bg-white px-3 py-2">
+                          <p className="text-xs uppercase tracking-normal text-slate-500">
+                            Fit score
+                          </p>
+                          <p className="mt-1 text-lg font-semibold text-slate-950">
+                            {job.fitScore}/100
+                          </p>
+                        </div>
+                        <div className="rounded-md border border-slate-200 bg-white px-3 py-2">
+                          <p className="text-xs uppercase tracking-normal text-slate-500">
+                            Recommendation
+                          </p>
+                          <p className="mt-1 text-lg font-semibold text-slate-950">
+                            {job.recommendation}
+                          </p>
+                        </div>
+                        <label className="block rounded-md border border-slate-200 bg-white px-3 py-2">
+                          <span className="text-xs uppercase tracking-normal text-slate-500">
+                            Status
+                          </span>
+                          <select
+                            value={job.status}
+                            onChange={(event) =>
+                              updateSavedJob(job.id, {
+                                status: event.target.value as TrackerStatus,
+                              })
+                            }
+                            className="mt-1 w-full bg-transparent text-lg font-semibold text-slate-950 outline-none"
+                          >
+                            {trackerStatuses.map((status) => (
+                              <option key={status} value={status}>
+                                {status}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      </div>
+
+                      <label className="mt-4 block">
+                        <span className="text-sm font-medium text-slate-700">
+                          Notes
+                        </span>
+                        <textarea
+                          value={job.notes}
+                          onChange={(event) =>
+                            updateSavedJob(job.id, { notes: event.target.value })
+                          }
+                          className="mt-2 min-h-20 w-full resize-y rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm leading-6 text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+                          placeholder="Follow-up notes, deadline, contact person..."
+                        />
+                      </label>
+                    </article>
+                  ))
+                )}
+              </div>
+            </section>
           </section>
         </div>
       </div>
